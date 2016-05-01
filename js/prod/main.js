@@ -3,13 +3,19 @@ var output = require('./output');
 var synth = require('./synth');
 var midiListener = require('./midiListener');
 
+output('Starting');
+
 midiListener.listen();
 midiListener.on('noteOn', function (note) { output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
 midiListener.on('noteOff', function (note) { output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
 
+output('MIDI initialized');
+
 synth.init();
 midiListener.on('noteOn', synth.on.bind(synth));
 midiListener.on('noteOff', synth.off.bind(synth));
+
+output('Synth initialized. Make sure the mute switch is off.');
 
 },{"./midiListener":2,"./output":3,"./synth":4}],2:[function(require,module,exports){
 var output = require('./output');
@@ -31,17 +37,17 @@ Object.assign(listener, {
   listen: function() {
     if (window.navigator.requestMIDIAccess) {
       window.navigator.requestMIDIAccess({sysex:false})
-        .then((midiAccess) => {
+        .then(function (midiAccess) {
           var midiInputs = midiAccess.inputs.values();
           var input = midiInputs.next();
           var inputs = [];
           do {
             inputs.push(input);
-            input.value.onmidimessage = (event) => emitMidiEvent(event);
+            input.value.onmidimessage = function (event) { emitMidiEvent(event); };
             input = midiInputs.next();
           } while(!input.done)
-          output('Listening to MIDI messages from: ' + inputs.map((i) => i.value.name).join('; '));
-        }, () => output('Failed to get access to the MIDI device'));
+          output('Listening to MIDI messages from: ' + inputs.map(function (i) { return i.value.name}).join('; '));
+        }, function () { output('Failed to get access to the MIDI device'); });
     } else {
       output('MIDI API is not available in the browser');
     }
@@ -64,7 +70,19 @@ module.exports = output;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],4:[function(require,module,exports){
 (function (global){
-var audioCtx = new global.AudioContext();
+var output = require('./output');
+
+var AudioContext;
+
+if (global.AudioContext) {
+  AudioContext = global.AudioContext;
+} else if (global.webkitAudioContext) {
+  AudioContext = global.webkitAudioContext;
+} else {
+  output('Audio API is not supported by the browser');
+}
+
+var audioCtx = new AudioContext;
 
 module.exports = {
   init: function() {
@@ -94,7 +112,7 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],5:[function(require,module,exports){
+},{"./output":3}],5:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a

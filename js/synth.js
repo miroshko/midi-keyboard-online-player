@@ -1,4 +1,16 @@
-var audioCtx = new global.AudioContext();
+var output = require('./output');
+
+var AudioContext;
+
+if (global.AudioContext) {
+  AudioContext = global.AudioContext;
+} else if (global.webkitAudioContext) {
+  AudioContext = global.webkitAudioContext;
+} else {
+  output('Audio API is not supported by the browser');
+}
+
+var audioCtx = new AudioContext;
 
 module.exports = {
   init: function() {
