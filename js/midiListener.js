@@ -10,7 +10,7 @@ function emitMidiEvent(event) {
   }[event.data[0]];
   var pitch = event.data[1];
   var velocity = event.data[2];
-  listener.emit(eventType, {pitch, velocity});
+  listener.emit(eventType, {pitch: pitch, velocity: velocity});
 }
 
 Object.assign(listener, {

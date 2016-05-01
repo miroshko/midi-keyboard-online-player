@@ -4,7 +4,7 @@ module.exports = {
   init: function() {
     this._oscillators = {};
     this._output = audioCtx.createGain();
-    this._output.gain.value = 0.6;
+    this._output.gain.value = 0.3;
     this._output.connect(audioCtx.destination);
   },
   on: function(note) {

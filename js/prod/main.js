@@ -4,12 +4,12 @@ var synth = require('./synth');
 var midiListener = require('./midiListener');
 
 midiListener.listen();
-midiListener.on('noteOn', (note) => output(`noteOn. pitch: ${note.pitch}; velocity: ${note.velocity}`))
-midiListener.on('noteOff', (note) => output(`noteOff. pitch: ${note.pitch}; velocity: ${note.velocity}`))
+midiListener.on('noteOn', function (note) { output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
+midiListener.on('noteOff', function (note) { output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
 
 synth.init();
-midiListener.on('noteOn', (note) => synth.on(note));
-midiListener.on('noteOff', (note) => synth.off(note));
+midiListener.on('noteOn', synth.on.bind(synth));
+midiListener.on('noteOff', synth.off.bind(synth));
 
 },{"./midiListener":2,"./output":3,"./synth":4}],2:[function(require,module,exports){
 var output = require('./output');
@@ -24,7 +24,7 @@ function emitMidiEvent(event) {
   }[event.data[0]];
   var pitch = event.data[1];
   var velocity = event.data[2];
-  listener.emit(eventType, {pitch, velocity});
+  listener.emit(eventType, {pitch: pitch, velocity: velocity});
 }
 
 Object.assign(listener, {
@@ -56,6 +56,7 @@ var outContainer = global.document.querySelector('#output');
 
 function output(msg) {
   outContainer.innerHTML += msg + '\n';
+  global.window.scrollTo(0,document.body.scrollHeight);
 }
 
 module.exports = output;
@@ -69,7 +70,7 @@ module.exports = {
   init: function() {
     this._oscillators = {};
     this._output = audioCtx.createGain();
-    this._output.gain.value = 0.6;
+    this._output.gain.value = 0.3;
     this._output.connect(audioCtx.destination);
   },
   on: function(note) {
