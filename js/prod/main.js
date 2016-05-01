@@ -1,12 +1,17 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 var output = require('./output');
+var synth = require('./synth');
 var midiListener = require('./midiListener');
 
 midiListener.listen();
 midiListener.on('noteOn', (note) => output(`noteOn. pitch: ${note.pitch}; velocity: ${note.velocity}`))
 midiListener.on('noteOff', (note) => output(`noteOff. pitch: ${note.pitch}; velocity: ${note.velocity}`))
 
-},{"./midiListener":2,"./output":3}],2:[function(require,module,exports){
+synth.init();
+midiListener.on('noteOn', (note) => synth.on(note));
+midiListener.on('noteOff', (note) => synth.off(note));
+
+},{"./midiListener":2,"./output":3,"./synth":4}],2:[function(require,module,exports){
 var output = require('./output');
 var Emitter = require('events').EventEmitter;
 
@@ -45,18 +50,50 @@ Object.assign(listener, {
 
 module.exports = listener;
 
-},{"./output":3,"events":4}],3:[function(require,module,exports){
+},{"./output":3,"events":5}],3:[function(require,module,exports){
 (function (global){
 var outContainer = global.document.querySelector('#output');
 
 function output(msg) {
-  outContainer.innerHTML = msg + '\n' + outContainer.innerHTML;
+  outContainer.innerHTML += msg + '\n';
 }
 
 module.exports = output;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],4:[function(require,module,exports){
+(function (global){
+var audioCtx = new global.AudioContext();
+
+module.exports = {
+  init: function() {
+    this._oscillators = {};
+    this._output = audioCtx.createGain();
+    this._output.gain.value = 0.6;
+    this._output.connect(audioCtx.destination);
+  },
+  on: function(note) {
+    if (this._oscillators[note.pitch]) {
+      return;
+    }
+    var oscillator = this._oscillators[note.pitch] = audioCtx.createOscillator();
+    oscillator.frequency.value = Math.pow(2, (note.pitch - 20 - 49) / 12) * 440;
+    oscillator.connect(this._output);
+    oscillator.start(0);
+  },
+  off: function(note) {
+    var oscillator = this._oscillators[note.pitch];
+    if (!oscillator) {
+      return;
+    }
+    oscillator.stop(0);
+    oscillator.disconnect(this._output);
+    delete this._oscillators[note.pitch];
+  }
+};
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],5:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
