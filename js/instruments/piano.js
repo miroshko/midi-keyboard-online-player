@@ -9,7 +9,7 @@ module.exports = (audioContext) => {
                 oscs.push(aua.oscillator(freq + (1 + Math.random() / 2) * freqDeviation, 'triangle'));
             });
 
-            var gain = velocity * 0.35;
+            var gain = velocity * 0.15;
             return aua.fadeOut(aua.gain(aua.loshelf(aua.mix.apply(aua, oscs), 1000, 4, 0.1), gain), 5);
         },
         stopNote: (note) => {
