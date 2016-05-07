@@ -1,4 +1,5 @@
 var output = require('./output');
+var pianoFactory = require('./instruments/piano');
 
 var AudioContext;
 
@@ -11,30 +12,25 @@ if (global.AudioContext) {
 }
 
 var audioCtx = new AudioContext;
+var piano = pianoFactory(audioCtx);
 
 module.exports = {
   init: function() {
-    this._oscillators = {};
-    this._output = audioCtx.createGain();
-    this._output.gain.value = 0.3;
-    this._output.connect(audioCtx.destination);
+    this._notesPlaying = {};
   },
   on: function(note) {
-    if (this._oscillators[note.pitch]) {
+    if (this._notesPlaying[note.pitch]) {
       return;
     }
-    var oscillator = this._oscillators[note.pitch] = audioCtx.createOscillator();
-    oscillator.frequency.value = Math.pow(2, (note.pitch - 20 - 49) / 12) * 440;
-    oscillator.connect(this._output);
-    oscillator.start(0);
+    var freq = Math.pow(2, (note.pitch - 20 - 49) / 12) * 440;
+    var notePlaying = this._notesPlaying[note.pitch] = piano.playNote(freq, note.velocity / 127);
   },
   off: function(note) {
-    var oscillator = this._oscillators[note.pitch];
-    if (!oscillator) {
+    var notePlaying = this._notesPlaying[note.pitch];
+    if (!notePlaying) {
       return;
     }
-    oscillator.stop(0);
-    oscillator.disconnect(this._output);
-    delete this._oscillators[note.pitch];
+    piano.stopNote(notePlaying);
+    delete this._notesPlaying[note.pitch];
   }
 };

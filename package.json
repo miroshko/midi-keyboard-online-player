@@ -1,15 +1,16 @@
 {
   "name": "web-midi-synth",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "online synth",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "browserify js/main.js -o js/prod/main.js"
+    "build": "browserify js/main.js -o js/prod/main.js -t [ babelify --presets [ es2015 ] ]"
   },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "browserify": "^13.0.0"
+  "author": "Oleksii Miroshko",
+  "license": "MIT",
+  "devDependencies": {
+    "browserify": "^13.0.0",
+    "babelify": "^7.3.0"
   }
 }

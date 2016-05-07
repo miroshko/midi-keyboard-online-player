@@ -5,10 +5,8 @@ var midiListener = require('./midiListener');
 output('Starting');
 
 midiListener.listen();
-midiListener.on('noteOn', function (note) { output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
-midiListener.on('noteOff', function (note) { output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
-
-output('MIDI initialized');
+midiListener.on('noteOn', (note) => output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity));
+midiListener.on('noteOff', (note) => output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity));
 
 synth.init();
 midiListener.on('noteOn', synth.on.bind(synth));

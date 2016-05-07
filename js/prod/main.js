@@ -1,4 +1,83 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+"use strict";
+
+module.exports = function (audioContext) {
+    return {
+        oscillator: function oscillator(frequency) {
+            var oscillator = audioContext.createOscillator();
+            var gain = audioContext.createGain();
+            oscillator.frequency.value = frequency;
+            gain.gain.value = 1;
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.start(0);
+            return [gain, oscillator];
+        },
+        gain: function gain(audioNodesArray, gainValue) {
+            var gain = audioNodesArray[0];
+            gain.gain.value = gainValue;
+            return audioNodesArray;
+        },
+        mix: function mix(gain) {
+            var argsArray = Array.from(arguments);
+            var gain = audioContext.createGain();
+            gain.gain.value = 1;
+            argsArray.forEach(function (audioNodesArray) {
+                audioNodesArray[0].disconnect(audioContext.destination);
+                audioNodesArray[0].connect(gain);
+            });
+            gain.connect(audioContext.destination);
+            return [gain, argsArray];
+        },
+        stop: function stop(audioNodesArray, timeout) {
+            setTimeout(function () {
+                audioNodesArray[0].disconnect(audioContext.destination);
+            }, timeout);
+            return audioNodesArray;
+        },
+        fadeOut: function fadeOut(audioNodesArray, timeout) {
+            timeout = timeout || 1;
+            var gain = audioNodesArray[0];
+            gain.gain.setValueAtTime(gain.gain.value, audioContext.currentTime);
+            gain.gain.cancelScheduledValues(audioContext.currentTime);
+            gain.gain.setTargetAtTime(0, audioContext.currentTime, timeout / 4);
+            return audioNodesArray;
+        }
+    };
+};
+
+},{}],2:[function(require,module,exports){
+'use strict';
+
+var auaFactory = require('../audioApiFuncs');
+
+module.exports = function (audioContext) {
+    var aua = auaFactory(audioContext);
+    return {
+        playNote: function playNote(freq, velocity) {
+            var oscs = [];
+            [0, 2.9, -4.2].forEach(function (freqDeviation) {
+                [0.9, 0.5, 0.6, 0.22].forEach(function (harmonicsLevel, harmonicsNumber) {
+                    oscs.push(aua.gain(aua.oscillator((freq + freqDeviation) * (1 + harmonicsNumber)), harmonicsLevel));
+                });
+            });
+
+            var gain = velocity * 0.15;
+            return aua.fadeOut(aua.gain(aua.mix.apply(aua, oscs), gain), 5);
+        },
+        stopNote: function stopNote(note) {
+            var timeout = 400;
+            aua.fadeOut(note, timeout / 1000);
+            setTimeout(function () {
+                return aua.stop(note);
+            }, timeout);
+        }
+    };
+};
+
+},{"../audioApiFuncs":1}],3:[function(require,module,exports){
+'use strict';
+
 var output = require('./output');
 var synth = require('./synth');
 var midiListener = require('./midiListener');
@@ -6,10 +85,12 @@ var midiListener = require('./midiListener');
 output('Starting');
 
 midiListener.listen();
-midiListener.on('noteOn', function (note) { output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
-midiListener.on('noteOff', function (note) { output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity); });
-
-output('MIDI initialized');
+midiListener.on('noteOn', function (note) {
+  return output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity);
+});
+midiListener.on('noteOff', function (note) {
+  return output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity);
+});
 
 synth.init();
 midiListener.on('noteOn', synth.on.bind(synth));
@@ -17,37 +98,50 @@ midiListener.on('noteOff', synth.off.bind(synth));
 
 output('Synth initialized. Make sure the mute switch is off.');
 
-},{"./midiListener":2,"./output":3,"./synth":4}],2:[function(require,module,exports){
+},{"./midiListener":4,"./output":5,"./synth":6}],4:[function(require,module,exports){
+'use strict';
+
 var output = require('./output');
 var Emitter = require('events').EventEmitter;
 
 var listener = new Emitter();
 
 function emitMidiEvent(event) {
-  var eventType = {
-    148: 'noteOn',
-    132: 'noteOff'
-  }[event.data[0]];
+  var eventType;
+  if (event.data[0] >= 144 && event.data[0] <= 159) {
+    eventType = 'noteOn';
+  } else if (event.data[0] >= 128 && event.data[0] <= 143) {
+    eventType = 'noteOff';
+  }
+
   var pitch = event.data[1];
   var velocity = event.data[2];
-  listener.emit(eventType, {pitch: pitch, velocity: velocity});
+
+  if (eventType == 'noteOn' && velocity == 0) {
+    eventType = 'noteOff';
+  }
+
+  listener.emit(eventType, { pitch: pitch, velocity: velocity });
 }
 
 Object.assign(listener, {
-  listen: function() {
+  listen: function listen() {
     if (window.navigator.requestMIDIAccess) {
-      window.navigator.requestMIDIAccess({sysex:false})
-        .then(function (midiAccess) {
-          var midiInputs = midiAccess.inputs.values();
-          var input = midiInputs.next();
-          var inputs = [];
-          do {
-            inputs.push(input);
-            input.value.onmidimessage = function (event) { emitMidiEvent(event); };
-            input = midiInputs.next();
-          } while(!input.done)
-          output('Listening to MIDI messages from: ' + inputs.map(function (i) { return i.value.name}).join('; '));
-        }, function () { output('Failed to get access to the MIDI device'); });
+      window.navigator.requestMIDIAccess({ sysex: false }).then(function (midiAccess) {
+        var midiInputs = midiAccess.inputs.values();
+        var input = midiInputs.next();
+        var inputs = [];
+        do {
+          inputs.push(input);
+          input.value.onmidimessage = emitMidiEvent;
+          input = midiInputs.next();
+        } while (!input.done);
+        output('Listening to MIDI messages from: ' + inputs.map(function (i) {
+          return i.value.name;
+        }).join('; '));
+      }, function () {
+        return output('Failed to get access to the MIDI device');
+      });
     } else {
       output('MIDI API is not available in the browser');
     }
@@ -56,21 +150,26 @@ Object.assign(listener, {
 
 module.exports = listener;
 
-},{"./output":3,"events":5}],3:[function(require,module,exports){
+},{"./output":5,"events":7}],5:[function(require,module,exports){
 (function (global){
+'use strict';
+
 var outContainer = global.document.querySelector('#output');
 
 function output(msg) {
   outContainer.innerHTML += msg + '\n';
-  global.window.scrollTo(0,document.body.scrollHeight);
+  global.window.scrollTo(0, document.body.scrollHeight);
 }
 
 module.exports = output;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],4:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 (function (global){
+'use strict';
+
 var output = require('./output');
+var pianoFactory = require('./instruments/piano');
 
 var AudioContext;
 
@@ -82,37 +181,32 @@ if (global.AudioContext) {
   output('Audio API is not supported by the browser');
 }
 
-var audioCtx = new AudioContext;
+var audioCtx = new AudioContext();
+var piano = pianoFactory(audioCtx);
 
 module.exports = {
-  init: function() {
-    this._oscillators = {};
-    this._output = audioCtx.createGain();
-    this._output.gain.value = 0.3;
-    this._output.connect(audioCtx.destination);
+  init: function init() {
+    this._notesPlaying = {};
   },
-  on: function(note) {
-    if (this._oscillators[note.pitch]) {
+  on: function on(note) {
+    if (this._notesPlaying[note.pitch]) {
       return;
     }
-    var oscillator = this._oscillators[note.pitch] = audioCtx.createOscillator();
-    oscillator.frequency.value = Math.pow(2, (note.pitch - 20 - 49) / 12) * 440;
-    oscillator.connect(this._output);
-    oscillator.start(0);
+    var freq = Math.pow(2, (note.pitch - 20 - 49) / 12) * 440;
+    var notePlaying = this._notesPlaying[note.pitch] = piano.playNote(freq, note.velocity / 127);
   },
-  off: function(note) {
-    var oscillator = this._oscillators[note.pitch];
-    if (!oscillator) {
+  off: function off(note) {
+    var notePlaying = this._notesPlaying[note.pitch];
+    if (!notePlaying) {
       return;
     }
-    oscillator.stop(0);
-    oscillator.disconnect(this._output);
-    delete this._oscillators[note.pitch];
+    piano.stopNote(notePlaying);
+    delete this._notesPlaying[note.pitch];
   }
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./output":3}],5:[function(require,module,exports){
+},{"./instruments/piano":2,"./output":5}],7:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -412,4 +506,4 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}]},{},[1]);
+},{}]},{},[3]);
