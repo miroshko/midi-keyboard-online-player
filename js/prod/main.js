@@ -1,12 +1,13 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-"use strict";
+'use strict';
 
 module.exports = function (audioContext) {
     return {
-        oscillator: function oscillator(frequency) {
+        oscillator: function oscillator(frequency, type) {
             var oscillator = audioContext.createOscillator();
             var gain = audioContext.createGain();
             oscillator.frequency.value = frequency;
+            oscillator.type = type;
             gain.gain.value = 1;
             oscillator.connect(gain);
             gain.connect(audioContext.destination);
@@ -17,6 +18,20 @@ module.exports = function (audioContext) {
             var gain = audioNodesArray[0];
             gain.gain.value = gainValue;
             return audioNodesArray;
+        },
+        loshelf: function loshelf(audioNodesArray, freq, q, gain) {
+            var filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = freq;
+            filter.Q.value = q;
+            filter.gain.value = gain;
+            var gain = audioContext.createGain();
+            gain.gain.value = 1;
+            audioNodesArray[0].disconnect(audioContext.destination);
+            audioNodesArray[0].connect(filter);
+            filter.connect(gain);
+            gain.connect(audioContext.destination);
+            return [gain, filter].concat(audioNodesArray);
         },
         mix: function mix(gain) {
             var argsArray = Array.from(arguments);
@@ -56,14 +71,12 @@ module.exports = function (audioContext) {
     return {
         playNote: function playNote(freq, velocity) {
             var oscs = [];
-            [0, 2.9, -4.2].forEach(function (freqDeviation) {
-                [0.9, 0.5, 0.6, 0.22].forEach(function (harmonicsLevel, harmonicsNumber) {
-                    oscs.push(aua.gain(aua.oscillator((freq + freqDeviation) * (1 + harmonicsNumber)), harmonicsLevel));
-                });
+            [0, 2.4, 3.2].forEach(function (freqDeviation) {
+                oscs.push(aua.oscillator(freq + (1 + Math.random() / 2) * freqDeviation, 'triangle'));
             });
 
-            var gain = velocity * 0.15;
-            return aua.fadeOut(aua.gain(aua.mix.apply(aua, oscs), gain), 5);
+            var gain = velocity * 0.35;
+            return aua.fadeOut(aua.gain(aua.loshelf(aua.mix.apply(aua, oscs), 1000, 4, 0.1), gain), 5);
         },
         stopNote: function stopNote(note) {
             var timeout = 400;

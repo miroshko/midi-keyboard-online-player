@@ -5,14 +5,12 @@ module.exports = (audioContext) => {
     return {
         playNote: (freq, velocity) => {
             var oscs = [];
-            [0, 2.9, -4.2].forEach((freqDeviation) => {
-                [0.9, 0.5, 0.6, 0.22].forEach((harmonicsLevel, harmonicsNumber) => {
-                    oscs.push(aua.gain(aua.oscillator((freq + freqDeviation) * (1 + harmonicsNumber)), harmonicsLevel));
-                });
+            [0, 2.4, 3.2].forEach((freqDeviation) => {
+                oscs.push(aua.oscillator(freq + (1 + Math.random() / 2) * freqDeviation, 'triangle'));
             });
 
-            var gain = velocity * 0.15;
-            return aua.fadeOut(aua.gain(aua.mix.apply(aua, oscs), gain), 5);
+            var gain = velocity * 0.35;
+            return aua.fadeOut(aua.gain(aua.loshelf(aua.mix.apply(aua, oscs), 1000, 4, 0.1), gain), 5);
         },
         stopNote: (note) => {
             var timeout = 400;
