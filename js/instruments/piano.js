@@ -5,12 +5,22 @@ module.exports = (audioContext) => {
     return {
         playNote: (freq, velocity) => {
             var oscs = [];
-            [0, 2.4, 3.2].forEach((freqDeviation) => {
-                oscs.push(aua.oscillator(freq + (1 + Math.random() / 2) * freqDeviation, 'triangle'));
+
+            var steps = 7;
+            var imag = new global.Float32Array(steps);
+            var real = new global.Float32Array(steps);
+
+            for (var i = 1; i < steps; i++) {
+                imag[i] = 1 / (i * Math.PI);
+            }
+            var wave = audioContext.createPeriodicWave(real, imag);
+
+            [-1.9, 1.1, 0].forEach((deviation) => {
+                oscs.push(aua.oscillator(freq + deviation, wave))
             });
 
-            var gain = velocity * 0.15;
-            return aua.fadeOut(aua.gain(aua.loshelf(aua.mix.apply(aua, oscs), 1000, 4, 0.1), gain), 5);
+            var note = aua.fadeOut(aua.gain(aua.mix.apply(null, oscs), 0.4 * velocity), 5);
+            return note;
         },
         stopNote: (note) => {
             var timeout = 400;

@@ -3,11 +3,15 @@
 
 module.exports = function (audioContext) {
     return {
-        oscillator: function oscillator(frequency, type) {
+        oscillator: function oscillator(frequency, typeOrWave) {
             var oscillator = audioContext.createOscillator();
             var gain = audioContext.createGain();
             oscillator.frequency.value = frequency;
-            oscillator.type = type;
+            if (typeof typeOrWave == 'string') {
+                oscillator.type = typeOrWave;
+            } else {
+                oscillator.setPeriodicWave(typeOrWave);
+            }
             gain.gain.value = 1;
             oscillator.connect(gain);
             gain.connect(audioContext.destination);
@@ -57,11 +61,23 @@ module.exports = function (audioContext) {
             gain.gain.cancelScheduledValues(audioContext.currentTime);
             gain.gain.setTargetAtTime(0, audioContext.currentTime, timeout / 4);
             return audioNodesArray;
+        },
+        fadeIn: function fadeIn(audioNodesArray, timeout) {
+            timeout = timeout || 1;
+            var gain = audioNodesArray[0];
+            var gainValue = gain.gain.value;
+            gain.gain.value = 0;
+            gain.gain.cancelScheduledValues(audioContext.currentTime);
+            gain.gain.setValueAtTime(0, audioContext.currentTime);
+            // console.log("RAMPING TO ", gainValue)
+            gain.gain.linearRampToValueAtTime(gainValue, audioContext.currentTime + timeout);
+            return audioNodesArray;
         }
     };
 };
 
 },{}],2:[function(require,module,exports){
+(function (global){
 'use strict';
 
 var auaFactory = require('../audioApiFuncs');
@@ -71,12 +87,22 @@ module.exports = function (audioContext) {
     return {
         playNote: function playNote(freq, velocity) {
             var oscs = [];
-            [0, 2.4, 3.2].forEach(function (freqDeviation) {
-                oscs.push(aua.oscillator(freq + (1 + Math.random() / 2) * freqDeviation, 'triangle'));
+
+            var steps = 7;
+            var imag = new global.Float32Array(steps);
+            var real = new global.Float32Array(steps);
+
+            for (var i = 1; i < steps; i++) {
+                imag[i] = 1 / (i * Math.PI);
+            }
+            var wave = audioContext.createPeriodicWave(real, imag);
+
+            [-1.9, 1.1, 0].forEach(function (deviation) {
+                oscs.push(aua.oscillator(freq + deviation, wave));
             });
 
-            var gain = velocity * 0.15;
-            return aua.fadeOut(aua.gain(aua.loshelf(aua.mix.apply(aua, oscs), 1000, 4, 0.1), gain), 5);
+            var note = aua.fadeOut(aua.gain(aua.mix.apply(null, oscs), 0.4 * velocity), 5);
+            return note;
         },
         stopNote: function stopNote(note) {
             var timeout = 400;
@@ -88,6 +114,7 @@ module.exports = function (audioContext) {
     };
 };
 
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../audioApiFuncs":1}],3:[function(require,module,exports){
 'use strict';
 

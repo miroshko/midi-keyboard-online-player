@@ -1,9 +1,13 @@
 module.exports = (audioContext) => ({
-    oscillator: (frequency, type) => {
+    oscillator: (frequency, typeOrWave) => {
         var oscillator = audioContext.createOscillator();
         var gain = audioContext.createGain();
         oscillator.frequency.value = frequency;
-        oscillator.type = type;
+        if (typeof typeOrWave == 'string') {
+            oscillator.type = typeOrWave;
+        } else {
+            oscillator.setPeriodicWave(typeOrWave);
+        }
         gain.gain.value = 1;
         oscillator.connect(gain);
         gain.connect(audioContext.destination);
