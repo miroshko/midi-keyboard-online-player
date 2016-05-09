@@ -51,6 +51,10 @@ module.exports = function (audioContext) {
         stop: function stop(audioNodesArray, timeout) {
             setTimeout(function () {
                 audioNodesArray[0].disconnect(audioContext.destination);
+                var stop = function stop(osc) {
+                    return osc instanceof Array ? osc.forEach(stop) : osc.stop ? osc.stop(0) : null;
+                };
+                stop(audioNodesArray);
             }, timeout);
             return audioNodesArray;
         },
@@ -60,17 +64,6 @@ module.exports = function (audioContext) {
             gain.gain.setValueAtTime(gain.gain.value, audioContext.currentTime);
             gain.gain.cancelScheduledValues(audioContext.currentTime);
             gain.gain.setTargetAtTime(0, audioContext.currentTime, timeout / 4);
-            return audioNodesArray;
-        },
-        fadeIn: function fadeIn(audioNodesArray, timeout) {
-            timeout = timeout || 1;
-            var gain = audioNodesArray[0];
-            var gainValue = gain.gain.value;
-            gain.gain.value = 0;
-            gain.gain.cancelScheduledValues(audioContext.currentTime);
-            gain.gain.setValueAtTime(0, audioContext.currentTime);
-            // console.log("RAMPING TO ", gainValue)
-            gain.gain.linearRampToValueAtTime(gainValue, audioContext.currentTime + timeout);
             return audioNodesArray;
         }
     };
@@ -118,7 +111,11 @@ module.exports = function (audioContext) {
 },{"../audioApiFuncs":1}],3:[function(require,module,exports){
 'use strict';
 
-var output = require('./output');
+var _require = require('./output');
+
+var output = _require.output;
+var activity = _require.activity;
+
 var synth = require('./synth');
 var midiListener = require('./midiListener');
 
@@ -126,10 +123,10 @@ output('Starting');
 
 midiListener.listen();
 midiListener.on('noteOn', function (note) {
-  return output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity);
+  return activity(true);
 });
 midiListener.on('noteOff', function (note) {
-  return output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity);
+  return activity(false);
 });
 
 synth.init();
@@ -141,7 +138,10 @@ output('Synth initialized. Make sure the mute switch is off.');
 },{"./midiListener":4,"./output":5,"./synth":6}],4:[function(require,module,exports){
 'use strict';
 
-var output = require('./output');
+var _require = require('./output');
+
+var output = _require.output;
+
 var Emitter = require('events').EventEmitter;
 
 var listener = new Emitter();
@@ -195,20 +195,28 @@ module.exports = listener;
 'use strict';
 
 var outContainer = global.document.querySelector('#output');
+var activityEl = global.document.querySelector('#activity');
 
 function output(msg) {
   outContainer.innerHTML += msg + '\n';
   global.window.scrollTo(0, document.body.scrollHeight);
 }
 
-module.exports = output;
+function activity(value) {
+  value ? activityEl.classList.add('active') : activityEl.classList.remove('active');
+}
+
+module.exports = { output: output, activity: activity };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],6:[function(require,module,exports){
 (function (global){
 'use strict';
 
-var output = require('./output');
+var _require = require('./output');
+
+var output = _require.output;
+
 var pianoFactory = require('./instruments/piano');
 
 var AudioContext;

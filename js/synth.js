@@ -1,4 +1,4 @@
-var output = require('./output');
+var {output} = require('./output');
 var pianoFactory = require('./instruments/piano');
 
 var AudioContext;

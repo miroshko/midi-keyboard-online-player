@@ -3,8 +3,27 @@
   <head>
     <meta charset="utf-8">
     <title></title>
+    <style type="text/css">
+      #activity {
+        border-radius: 10px;
+        height: 10px;
+        width: 10px;
+        background-color: lightgrey;
+      }
+      #activity.active {
+        background-color: lime;
+      }
+    </style>
   </head>
   <body>
+    <h1>MIDI keyboard online player</h1>
+    <p>
+      To play with IOS devices you need to open the page with the
+      <a href="http://www.taktech.org/takm/WebMIDIBrowser/Web_MIDI_Browser.html">
+        Web MIDI browser
+      </a>
+    </p>
+    <div id="activity" title="MIDI activity"></div>
     <pre id="output"></pre>
     <script src="js/prod/main.js"></script>
   </body>

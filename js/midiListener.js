@@ -1,4 +1,4 @@
-var output = require('./output');
+var {output} = require('./output');
 var Emitter = require('events').EventEmitter;
 
 var listener = new Emitter();

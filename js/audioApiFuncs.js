@@ -47,6 +47,8 @@ module.exports = (audioContext) => ({
     stop: (audioNodesArray, timeout) => {
         setTimeout(() => {
             audioNodesArray[0].disconnect(audioContext.destination);
+            var stop = (osc) => osc instanceof Array ? osc.forEach(stop) : osc.stop ? osc.stop(0) : null;
+            stop(audioNodesArray);
         }, timeout);
         return audioNodesArray;
     },

@@ -1,12 +1,12 @@
-var output = require('./output');
+var {output, activity} = require('./output');
 var synth = require('./synth');
 var midiListener = require('./midiListener');
 
 output('Starting');
 
 midiListener.listen();
-midiListener.on('noteOn', (note) => output('noteOn. pitch: ' + note.pitch + ' velocity: ' + note.velocity));
-midiListener.on('noteOff', (note) => output('noteOff. pitch: ' + note.pitch + ' velocity: ' + note.velocity));
+midiListener.on('noteOn', (note) => activity(true));
+midiListener.on('noteOff', (note) => activity(false));
 
 synth.init();
 midiListener.on('noteOn', synth.on.bind(synth));
